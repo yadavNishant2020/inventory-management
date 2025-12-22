@@ -6,6 +6,10 @@ node_modules/
 .env.local
 .env.*.local
 
+# PHP Config files with secrets (use config.example.php as template)
+php-backend/config.php
+php-hostinger-deployment/config.php
+
 # Logs
 *.log
 npm-debug.log*
