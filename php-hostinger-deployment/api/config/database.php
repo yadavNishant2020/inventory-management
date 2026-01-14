@@ -104,6 +104,31 @@ class Database {
                 $stmt->execute([$hashedPassword]);
             }
 
+            // Create crate_customers table
+            $conn->exec("
+                CREATE TABLE IF NOT EXISTS crate_customers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name_en VARCHAR(100) NOT NULL,
+                    name_hi VARCHAR(100),
+                    opening_balance INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ");
+
+            // Create crate_entries table
+            $conn->exec("
+                CREATE TABLE IF NOT EXISTS crate_entries (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    customer_id INT NOT NULL,
+                    type ENUM('IN', 'OUT') NOT NULL,
+                    quantity INT NOT NULL,
+                    entry_date DATE NOT NULL,
+                    remark VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (customer_id) REFERENCES crate_customers(id) ON DELETE CASCADE
+                )
+            ");
+
             return true;
         } catch (PDOException $e) {
             error_log("Table initialization error: " . $e->getMessage());

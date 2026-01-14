@@ -9,6 +9,7 @@ export default defineConfig({
     hmr: {
       port: 3001,
     },
+    allowedHosts: ["localhost", ".ngrok-free.app", ".ngrok.io"],
     proxy: {
       "/api": {
         target: "http://localhost:5001",

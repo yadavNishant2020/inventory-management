@@ -10,6 +10,10 @@ import TruckIn from './pages/TruckIn'
 import TruckOut from './pages/TruckOut'
 import Entries from './pages/Entries'
 import Settings from './pages/Settings'
+import CratesDashboard from './pages/CratesDashboard'
+import CratesCustomers from './pages/CratesCustomers'
+import CratesEntry from './pages/CratesEntry'
+import CratesLedger from './pages/CratesLedger'
 
 // Toast context for global notifications
 export const ToastContext = createContext()
@@ -93,6 +97,28 @@ function AppRoutes() {
         <Route path="/settings" element={
           <ProtectedRoute>
             <AppLayout><Settings /></AppLayout>
+          </ProtectedRoute>
+        } />
+        
+        {/* Crates Ledger Routes */}
+        <Route path="/crates" element={
+          <ProtectedRoute>
+            <AppLayout><CratesDashboard /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crates/customers" element={
+          <ProtectedRoute>
+            <AppLayout><CratesCustomers /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crates/entry" element={
+          <ProtectedRoute>
+            <AppLayout><CratesEntry /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crates/ledger/:customerId" element={
+          <ProtectedRoute>
+            <AppLayout><CratesLedger /></AppLayout>
           </ProtectedRoute>
         } />
         

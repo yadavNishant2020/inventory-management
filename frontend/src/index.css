@@ -236,4 +236,11 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.8rem !important;
     padding: 6px 10px !important;
   }
+
+  /* Position datepicker popup for mobile */
+  .react-datepicker-popper {
+    left: 16px !important;
+    right: 16px !important;
+    transform: none !important;
+  }
 }

@@ -23,6 +23,7 @@ setCorsHeaders();
 require_once __DIR__ . '/routes/auth.php';
 require_once __DIR__ . '/routes/items.php';
 require_once __DIR__ . '/routes/entries.php';
+require_once __DIR__ . '/routes/crates.php';
 
 // Get request method and path
 $method = $_SERVER['REQUEST_METHOD'];
@@ -118,6 +119,45 @@ try {
         }
         else {
             errorResponse('Entries endpoint not found', 404);
+        }
+    }
+
+    // Crates routes
+    elseif (preg_match('#^/crates#', $path)) {
+        $crates = new CratesRoutes();
+        
+        if ($path === '/crates/customers' && $method === 'GET') {
+            $crates->getCustomers();
+        }
+        elseif ($path === '/crates/customers' && $method === 'POST') {
+            $crates->createCustomer();
+        }
+        elseif (preg_match('#^/crates/customers/(\d+)$#', $path, $matches) && $method === 'PUT') {
+            $crates->updateCustomer($matches[1]);
+        }
+        elseif (preg_match('#^/crates/customers/(\d+)$#', $path, $matches) && $method === 'DELETE') {
+            $crates->deleteCustomer($matches[1]);
+        }
+        elseif ($path === '/crates/entries' && $method === 'GET') {
+            $crates->getEntries();
+        }
+        elseif ($path === '/crates/entries' && $method === 'POST') {
+            $crates->createEntry();
+        }
+        elseif ($path === '/crates/entries/bulk' && $method === 'POST') {
+            $crates->createBulkEntries();
+        }
+        elseif (preg_match('#^/crates/entries/(\d+)$#', $path, $matches) && $method === 'DELETE') {
+            $crates->deleteEntry($matches[1]);
+        }
+        elseif (preg_match('#^/crates/ledger/(\d+)$#', $path, $matches) && $method === 'GET') {
+            $crates->getLedger($matches[1]);
+        }
+        elseif ($path === '/crates/stats' && $method === 'GET') {
+            $crates->getStats();
+        }
+        else {
+            errorResponse('Crates endpoint not found', 404);
         }
     }
 
