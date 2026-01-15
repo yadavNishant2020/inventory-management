@@ -77,26 +77,29 @@ function CratesLedger() {
     return `${day}/${month}/${year}`;
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-
+  // Generate print HTML - called with current data
+  const generatePrintHTML = (customerData, entriesData, summaryData) => {
     const netBalanceColor =
-      summary.net_balance > 0
+      summaryData.net_balance > 0
         ? "#dc2626"
-        : summary.net_balance < 0
+        : summaryData.net_balance < 0
         ? "#059669"
         : "#374151";
     const balanceText =
-      summary.net_balance > 0 ? "Dr" : summary.net_balance < 0 ? "Cr" : "";
+      summaryData.net_balance > 0
+        ? "Dr"
+        : summaryData.net_balance < 0
+        ? "Cr"
+        : "";
     const balanceNote =
-      summary.net_balance > 0
+      summaryData.net_balance > 0
         ? "(Customer owes)"
-        : summary.net_balance < 0
+        : summaryData.net_balance < 0
         ? "(We owe)"
         : "";
 
     let entriesHtml = "";
-    entries.forEach((entry) => {
+    entriesData.forEach((entry) => {
       const isDebit = entry.type === "OUT";
       entriesHtml += `
         <tr>
@@ -129,11 +132,12 @@ function CratesLedger() {
       dateRangeDisplay = `शुरू से ${toDateStr} तक`;
     }
 
-    printWindow.document.write(`
+    return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Ledger</title>
+        <title>Ledger - ${customerData?.name_en || ""}</title>
+        <meta charset="UTF-8">
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           @page {
@@ -159,11 +163,11 @@ function CratesLedger() {
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 20px;">
           <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 2px;">${
-            customer?.name_en || ""
+            customerData?.name_en || ""
           }</h1>
           ${
-            customer?.name_hi
-              ? `<p style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${customer.name_hi}</p>`
+            customerData?.name_hi
+              ? `<p style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${customerData.name_hi}</p>`
               : ""
           }
           ${
@@ -180,25 +184,25 @@ function CratesLedger() {
               <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
                 <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">पुरानी बाकि</div>
                 <div style="font-size: 18px; font-weight: bold;">${
-                  summary.opening_balance || 0
+                  summaryData.opening_balance || 0
                 }</div>
               </td>
               <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
                 <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">कुल उधार (-)</div>
                 <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${
-                  summary.total_out || 0
+                  summaryData.total_out || 0
                 }</div>
               </td>
               <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
                 <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">कुल जमा (+)</div>
                 <div style="font-size: 18px; font-weight: bold; color: #059669;">${
-                  summary.total_in || 0
+                  summaryData.total_in || 0
                 }</div>
               </td>
               <td style="width: 25%; padding: 16px; text-align: center;">
                 <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">बाकि</div>
                 <div style="font-size: 18px; font-weight: bold; color: ${netBalanceColor};">${Math.abs(
-      summary.net_balance || 0
+      summaryData.net_balance || 0
     )} <span style="font-size: 12px;">${balanceText}</span></div>
                 ${
                   balanceNote
@@ -212,7 +216,7 @@ function CratesLedger() {
         
         <!-- Entries Info -->
         <p style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">No. of Entries: <strong style="color: #374151;">${
-          entries.length
+          entriesData.length
         }</strong></p>
         
         <!-- Table -->
@@ -229,10 +233,10 @@ function CratesLedger() {
             <tr style="background: #f3f4f6; font-weight: bold;">
               <td style="border: 1px solid #e5e7eb; padding: 10px 12px; font-size: 13px;">कुल योग</td>
               <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; color: #dc2626;">${
-                summary.total_out || 0
+                summaryData.total_out || 0
               }</td>
               <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; color: #059669;">${
-                summary.total_in || 0
+                summaryData.total_in || 0
               }</td>
             </tr>
           </tbody>
@@ -253,21 +257,7 @@ function CratesLedger() {
         </p>
       </body>
       </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  };
-
-  const handleSavePDF = () => {
-    // Use print dialog with "Save as PDF" option
-    handlePrint();
-    showToast('Use "Save as PDF" in the print dialog', "info");
+    `;
   };
 
   if (loading && !ledgerData) {
@@ -281,6 +271,34 @@ function CratesLedger() {
   const customer = ledgerData?.customer;
   const entries = ledgerData?.entries || [];
   const summary = ledgerData?.summary || {};
+
+  // Print function - defined after data variables are available
+  const handlePrint = () => {
+    const htmlContent = generatePrintHTML(customer, entries, summary);
+
+    // Open new window and write content directly
+    const printWindow = window.open("", "PrintWindow", "width=800,height=600");
+    if (!printWindow) {
+      showToast("Please allow popups to print", "error");
+      return;
+    }
+
+    // Write the HTML content
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Use a longer delay to ensure content is fully rendered
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 500);
+  };
+
+  const handleSavePDF = () => {
+    handlePrint();
+    showToast('Use "Save as PDF" in the print dialog', "info");
+  };
 
   return (
     <div className="space-y-4">
