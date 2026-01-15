@@ -130,6 +130,17 @@ function CratesLedger() {
       dateRangeDisplay = `${fromDateStr} से आज तक`;
     } else if (toDateStr) {
       dateRangeDisplay = `शुरू से ${toDateStr} तक`;
+    } else {
+      // No filter applied - show "All entries" or date range from entries
+      if (entriesData.length > 0) {
+        const firstDate = formatDateShort(
+          entriesData[entriesData.length - 1].entry_date
+        );
+        const lastDate = formatDateShort(entriesData[0].entry_date);
+        dateRangeDisplay = `${firstDate} से ${lastDate} तक`;
+      } else {
+        dateRangeDisplay = "सभी एंट्री";
+      }
     }
 
     return `
