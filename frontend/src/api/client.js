@@ -1,16 +1,12 @@
 import axios from "axios";
 
-// Use ngrok URL for external access, or local proxy for development
-const API_BASE_URL =
-  window.location.hostname === "localhost"
-    ? "/api"
-    : "https://51d0ef2e84c7.ngrok-free.app/api";
+// Use /api for production (same domain) and local development
+const API_BASE_URL = "/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
-    "ngrok-skip-browser-warning": "true",
   },
 });
 

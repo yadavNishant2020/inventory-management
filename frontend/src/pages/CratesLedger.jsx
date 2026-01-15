@@ -320,7 +320,7 @@ function CratesLedger() {
       </div>
 
       {/* Date Filter */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 pl-8">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
@@ -333,6 +333,7 @@ function CratesLedger() {
               className="w-36 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
               placeholderText="Start date"
               popperClassName="z-50"
+              popperPlacement="bottom-start"
               isClearable
             />
           </div>
@@ -347,6 +348,7 @@ function CratesLedger() {
               className="w-36 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
               placeholderText="End date"
               popperClassName="z-50"
+              popperPlacement="bottom-start"
               isClearable
             />
           </div>

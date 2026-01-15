@@ -275,8 +275,8 @@ class EntriesRoutes {
                 SELECT 
                     e.id,
                     e.item_id,
-                    e.item_name,
-                    e.item_variety,
+                    e.item_name as name,
+                    e.item_variety as variety,
                     e.quantity,
                     e.remark
                 FROM entries e
@@ -284,20 +284,21 @@ class EntriesRoutes {
                 ORDER BY e.id ASC
             ");
             $stmt->execute([$id]);
-            $entries = $stmt->fetchAll();
+            $items = $stmt->fetchAll();
 
             // Convert types
             $truck['id'] = (int)$truck['id'];
-            $entries = array_map(function($entry) {
-                $entry['id'] = (int)$entry['id'];
-                $entry['item_id'] = $entry['item_id'] ? (int)$entry['item_id'] : null;
-                $entry['quantity'] = (int)$entry['quantity'];
-                return $entry;
-            }, $entries);
+            $items = array_map(function($item) {
+                $item['id'] = (int)$item['id'];
+                $item['item_id'] = $item['item_id'] ? (int)$item['item_id'] : null;
+                $item['quantity'] = (int)$item['quantity'];
+                return $item;
+            }, $items);
 
+            // Return in format expected by frontend
             jsonResponse([
                 'truck' => $truck,
-                'entries' => $entries
+                'items' => $items
             ]);
         } catch (Exception $e) {
             error_log("Get truck details error: " . $e->getMessage());
@@ -457,4 +458,5 @@ class EntriesRoutes {
         }
     }
 }
+
 
