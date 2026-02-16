@@ -15,7 +15,7 @@ function CratesEntry() {
     preselectedCustomer || ""
   );
   const [entries, setEntries] = useState([
-    { id: 1, type: "OUT", quantity: "", entry_date: new Date(), remark: "" },
+    { id: 1, type: "OUT", wg_quantity: "", normal_quantity: "", entry_date: new Date(), remark: "" },
   ]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +41,8 @@ function CratesEntry() {
       {
         id: Date.now(),
         type: "OUT",
-        quantity: "",
+        wg_quantity: "",
+        normal_quantity: "",
         entry_date: new Date(),
         remark: "",
       },
@@ -65,12 +66,14 @@ function CratesEntry() {
       return;
     }
 
-    const validEntries = entries.filter(
-      (e) => e.quantity && parseInt(e.quantity) > 0
-    );
+    const validEntries = entries.filter((e) => {
+      const wg = parseInt(e.wg_quantity) || 0;
+      const normal = parseInt(e.normal_quantity) || 0;
+      return wg + normal > 0 && wg >= 0 && normal >= 0;
+    });
 
     if (validEntries.length === 0) {
-      showToast("Add at least one entry with quantity", "warning");
+      showToast("Add at least one entry with WG or Sada quantity", "warning");
       return;
     }
 
@@ -81,7 +84,8 @@ function CratesEntry() {
         customer_id: parseInt(selectedCustomer),
         entries: validEntries.map((e) => ({
           type: e.type,
-          quantity: parseInt(e.quantity),
+          wg_quantity: parseInt(e.wg_quantity) || 0,
+          normal_quantity: parseInt(e.normal_quantity) || 0,
           entry_date: formatDateForAPI(e.entry_date),
           remark: e.remark.trim() || null,
         })),
@@ -98,7 +102,8 @@ function CratesEntry() {
         {
           id: 1,
           type: "OUT",
-          quantity: "",
+          wg_quantity: "",
+          normal_quantity: "",
           entry_date: new Date(),
           remark: "",
         },
@@ -119,14 +124,19 @@ function CratesEntry() {
     )}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
+  const entryTotal = (e) =>
+    (parseInt(e.wg_quantity) || 0) + (parseInt(e.normal_quantity) || 0);
   const totalOut = entries.reduce(
-    (sum, e) => sum + (e.type === "OUT" ? parseInt(e.quantity) || 0 : 0),
+    (sum, e) => sum + (e.type === "OUT" ? entryTotal(e) : 0),
     0
   );
   const totalIn = entries.reduce(
-    (sum, e) => sum + (e.type === "IN" ? parseInt(e.quantity) || 0 : 0),
+    (sum, e) => sum + (e.type === "IN" ? entryTotal(e) : 0),
     0
   );
+  const validEntryCount = entries.filter(
+    (e) => entryTotal(e) > 0 && (parseInt(e.wg_quantity) || 0) >= 0 && (parseInt(e.normal_quantity) || 0) >= 0
+  ).length;
 
   if (loading) {
     return (
@@ -234,40 +244,88 @@ function CratesEntry() {
                 </button>
               </div>
 
-              {/* Date & Quantity */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    Date
-                  </label>
+              {/* Date with increment/decrement buttons */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Date
+                </label>
+                <div className="flex items-center gap-2">
                   <DatePicker
                     selected={entry.entry_date}
                     onChange={(date) =>
                       updateEntry(entry.id, "entry_date", date)
                     }
                     dateFormat="dd/MM/yyyy"
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    className="flex-1 px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                     popperClassName="z-50"
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(entry.entry_date);
+                      d.setDate(d.getDate() - 1);
+                      updateEntry(entry.id, "entry_date", d);
+                    }}
+                    className="p-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                    title="Decrease date by 1 day"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(entry.entry_date);
+                      d.setDate(d.getDate() + 1);
+                      updateEntry(entry.id, "entry_date", d);
+                    }}
+                    className="p-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                    title="Increase date by 1 day"
+                  >
+                    +
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={entry.quantity}
-                    onChange={(e) =>
-                      updateEntry(entry.id, "quantity", e.target.value)
-                    }
-                    placeholder="0"
-                    className={`w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-center focus:ring-2 ${
-                      entry.type === "OUT"
-                        ? "text-amber-600 focus:border-amber-500 focus:ring-amber-500/20"
-                        : "text-emerald-600 focus:border-emerald-500 focus:ring-emerald-500/20"
-                    }`}
-                  />
+              </div>
+
+              {/* Quantity: WG + Sada */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  Quantity (WG + Sada)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={entry.wg_quantity}
+                      onChange={(e) =>
+                        updateEntry(entry.id, "wg_quantity", e.target.value)
+                      }
+                      placeholder="WG"
+                      className={`w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-center focus:ring-2 ${
+                        entry.type === "OUT"
+                          ? "text-amber-600 focus:border-amber-500 focus:ring-amber-500/20"
+                          : "text-emerald-600 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">WG</p>
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={entry.normal_quantity}
+                      onChange={(e) =>
+                        updateEntry(entry.id, "normal_quantity", e.target.value)
+                      }
+                      placeholder="Sada"
+                      className={`w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-center focus:ring-2 ${
+                        entry.type === "OUT"
+                          ? "text-amber-600 focus:border-amber-500 focus:ring-amber-500/20"
+                          : "text-emerald-600 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">Sada</p>
+                  </div>
                 </div>
               </div>
 
@@ -305,10 +363,10 @@ function CratesEntry() {
         <button
           onClick={handleSubmit}
           disabled={
-            submitting || !selectedCustomer || (totalOut === 0 && totalIn === 0)
+            submitting || !selectedCustomer || validEntryCount === 0
           }
           className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 ${
-            selectedCustomer && (totalOut > 0 || totalIn > 0)
+            selectedCustomer && validEntryCount > 0
               ? "bg-amber-500 shadow-amber-500/30 hover:bg-amber-600"
               : "bg-slate-300"
           }`}
@@ -321,12 +379,7 @@ function CratesEntry() {
           ) : (
             <>
               <CheckIcon className="w-5 h-5" />
-              Save{" "}
-              {
-                entries.filter((e) => e.quantity && parseInt(e.quantity) > 0)
-                  .length
-              }{" "}
-              Entries
+              Save {validEntryCount} Entries
             </>
           )}
         </button>

@@ -12,7 +12,8 @@ function CratesCustomers() {
   const [formData, setFormData] = useState({
     name_en: '',
     name_hi: '',
-    opening_balance: ''
+    opening_balance_wg: '',
+    opening_balance_normal: ''
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -49,11 +50,12 @@ function CratesCustomers() {
       await cratesApi.createCustomer({
         name_en: formData.name_en.trim(),
         name_hi: formData.name_hi.trim() || null,
-        opening_balance: parseInt(formData.opening_balance) || 0
+        opening_balance_wg: parseInt(formData.opening_balance_wg) || 0,
+        opening_balance_normal: parseInt(formData.opening_balance_normal) || 0
       })
 
       showToast('Customer added successfully', 'success')
-      setFormData({ name_en: '', name_hi: '', opening_balance: '' })
+      setFormData({ name_en: '', name_hi: '', opening_balance_wg: '', opening_balance_normal: '' })
       setShowAddForm(false)
       fetchCustomers()
     } catch (error) {
@@ -143,16 +145,32 @@ function CratesCustomers() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                Opening Balance (Crates customer already has)
+                Opening Balance (पुरानी बाकि) – WG + Sada
               </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.opening_balance}
-                onChange={(e) => handleInputChange('opening_balance', e.target.value)}
-                placeholder="0"
-                className="w-full sm:w-48 px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
+              <div className="flex flex-wrap gap-3">
+                <div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.opening_balance_wg}
+                    onChange={(e) => handleInputChange('opening_balance_wg', e.target.value)}
+                    placeholder="WG"
+                    className="w-full sm:w-32 px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">WG</p>
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.opening_balance_normal}
+                    onChange={(e) => handleInputChange('opening_balance_normal', e.target.value)}
+                    placeholder="Sada"
+                    className="w-full sm:w-32 px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Sada</p>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3 pt-2">
               <button

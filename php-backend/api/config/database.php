@@ -111,6 +111,8 @@ class Database {
                     name_en VARCHAR(100) NOT NULL,
                     name_hi VARCHAR(100),
                     opening_balance INT DEFAULT 0,
+                    opening_balance_wg INT NOT NULL DEFAULT 0,
+                    opening_balance_normal INT NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ");
@@ -122,6 +124,8 @@ class Database {
                     customer_id INT NOT NULL,
                     type ENUM('IN', 'OUT') NOT NULL,
                     quantity INT NOT NULL,
+                    wg_quantity INT NOT NULL DEFAULT 0,
+                    normal_quantity INT NOT NULL DEFAULT 0,
                     entry_date DATE NOT NULL,
                     remark VARCHAR(255),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -129,10 +133,66 @@ class Database {
                 )
             ");
 
+            $this->migrateCrateSchema($conn);
+            $this->migrateCrateData($conn);
             return true;
         } catch (PDOException $e) {
             error_log("Table initialization error: " . $e->getMessage());
             throw new Exception("Failed to initialize database tables");
+        }
+    }
+
+    /**
+     * Migrate crate tables: add WG/Sada columns if they don't exist (for existing installations)
+     */
+    private function migrateCrateSchema($conn) {
+        $migrations = [
+            'crate_customers' => [
+                'opening_balance_wg INT NOT NULL DEFAULT 0',
+                'opening_balance_normal INT NOT NULL DEFAULT 0',
+            ],
+            'crate_entries' => [
+                'wg_quantity INT NOT NULL DEFAULT 0',
+                'normal_quantity INT NOT NULL DEFAULT 0',
+            ],
+        ];
+        foreach ($migrations as $table => $columns) {
+            foreach ($columns as $colDef) {
+                $colName = preg_replace('/\s+.*/', '', $colDef);
+                try {
+                    $conn->exec("ALTER TABLE {$table} ADD COLUMN {$colDef}");
+                } catch (PDOException $e) {
+                    if ($e->getCode() != '42S21') {
+                        throw $e;
+                    }
+                    // 42S21 = duplicate column name, ignore
+                }
+            }
+        }
+    }
+
+    /**
+     * Backfill WG/Sada data: existing entries -> normal_quantity = quantity, wg_quantity = 0;
+     * existing customers -> opening_balance_normal = opening_balance, opening_balance_wg = 0
+     */
+    private function migrateCrateData($conn) {
+        try {
+            $conn->exec("
+                UPDATE crate_entries
+                SET normal_quantity = quantity, wg_quantity = 0
+                WHERE quantity > 0 AND COALESCE(normal_quantity, 0) = 0 AND COALESCE(wg_quantity, 0) = 0
+            ");
+        } catch (PDOException $e) {
+            // Columns may not exist yet
+        }
+        try {
+            $conn->exec("
+                UPDATE crate_customers
+                SET opening_balance_normal = opening_balance, opening_balance_wg = 0
+                WHERE opening_balance != 0 AND COALESCE(opening_balance_normal, 0) = 0 AND COALESCE(opening_balance_wg, 0) = 0
+            ");
+        } catch (PDOException $e) {
+            // Columns may not exist yet
         }
     }
 }

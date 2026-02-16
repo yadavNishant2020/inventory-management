@@ -77,6 +77,14 @@ function CratesLedger() {
     return `${day}/${month}/${year}`;
   };
 
+  const formatWgSadaTotal = (wg, normal) => {
+    const w = Number(wg) || 0;
+    const n = Number(normal) || 0;
+    const total = w + n;
+    if (total === 0) return "–";
+    return `${w} + ${n} = ${total}`;
+  };
+
   // Generate print HTML - called with current data
   const generatePrintHTML = (customerData, entriesData, summaryData) => {
     const netBalanceColor =
@@ -98,23 +106,32 @@ function CratesLedger() {
         ? "(We owe)"
         : "";
 
+    const pdfFormatWgSada = (wg, normal) => {
+      const w = Number(wg) || 0;
+      const n = Number(normal) || 0;
+      const total = w + n;
+      return total === 0 ? "–" : `${w} + ${n} = ${total}`;
+    };
     let entriesHtml = "";
     entriesData.forEach((entry) => {
       const isDebit = entry.type === "OUT";
+      const wg = entry.wg_quantity ?? 0;
+      const normal = entry.normal_quantity ?? entry.quantity ?? 0;
+      const cellVal = pdfFormatWgSada(wg, normal);
       entriesHtml += `
         <tr>
-          <td style="border: 1px solid #e5e7eb; padding: 10px 12px; font-size: 13px;">${formatDateShort(
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 9px;">${formatDateShort(
             entry.entry_date
           )}${
         entry.remark
-          ? `<br><span style="font-size: 11px; color: #9ca3af;">${entry.remark}</span>`
+          ? `<br><span style="font-size: 8px; color: #9ca3af;">${entry.remark}</span>`
           : ""
       }</td>
-          <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; font-weight: 600; color: #dc2626;">${
-            isDebit ? entry.quantity : ""
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: 9px; color: #dc2626;">${
+            isDebit ? cellVal : "–"
           }</td>
-          <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; font-weight: 600; color: #059669;">${
-            !isDebit ? entry.quantity : ""
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: 9px; color: #059669;">${
+            !isDebit ? cellVal : "–"
           }</td>
         </tr>
       `;
@@ -164,7 +181,11 @@ function CratesLedger() {
           body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
             padding: 15mm 30mm;
+            padding-bottom: 25mm;
+            margin-bottom: 15mm;
+            min-height: 100vh;
             color: #374151;
+            font-size: 9px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -172,52 +193,44 @@ function CratesLedger() {
       </head>
       <body>
         <!-- Header -->
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 2px;">${
+        <div style="text-align: center; margin-bottom: 14px;">
+          <h1 style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${
             customerData?.name_en || ""
           }</h1>
           ${
             customerData?.name_hi
-              ? `<p style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${customerData.name_hi}</p>`
+              ? `<p style="color: #6b7280; font-size: 10px; margin-bottom: 4px;">${customerData.name_hi}</p>`
               : ""
           }
           ${
             dateRangeDisplay
-              ? `<p style="color: #374151; font-size: 12px; font-weight: 500; margin-top: 6px; padding: 4px 12px; background: #f3f4f6; display: inline-block; border-radius: 4px;">${dateRangeDisplay}</p>`
+              ? `<p style="color: #374151; font-size: 9px; font-weight: 500; margin-top: 4px; padding: 3px 10px; background: #f3f4f6; display: inline-block; border-radius: 4px;">${dateRangeDisplay}</p>`
               : ""
           }
         </div>
         
         <!-- Summary Box -->
-        <div style="border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 24px; overflow: hidden;">
-          <table style="width: 100%; border-collapse: collapse;">
+        <div style="border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
             <tr>
-              <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">पुरानी बाकि</div>
-                <div style="font-size: 18px; font-weight: bold;">${
-                  summaryData.opening_balance || 0
-                }</div>
+              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
+                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">पुरानी बाकि</div>
+                <div style="font-size: 11px; font-weight: bold;">${pdfFormatWgSada(summaryData.opening_balance_wg ?? 0, summaryData.opening_balance_normal ?? 0)}</div>
               </td>
-              <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">कुल उधार (-)</div>
-                <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${
-                  summaryData.total_out || 0
-                }</div>
+              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
+                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">कुल उधार (-)</div>
+                <div style="font-size: 11px; font-weight: bold; color: #dc2626;">${pdfFormatWgSada(summaryData.total_out_wg ?? 0, summaryData.total_out_normal ?? 0)}</div>
               </td>
-              <td style="width: 25%; padding: 16px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">कुल जमा (+)</div>
-                <div style="font-size: 18px; font-weight: bold; color: #059669;">${
-                  summaryData.total_in || 0
-                }</div>
+              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
+                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">कुल जमा (+)</div>
+                <div style="font-size: 11px; font-weight: bold; color: #059669;">${pdfFormatWgSada(summaryData.total_in_wg ?? 0, summaryData.total_in_normal ?? 0)}</div>
               </td>
-              <td style="width: 25%; padding: 16px; text-align: center;">
-                <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">बाकि</div>
-                <div style="font-size: 18px; font-weight: bold; color: ${netBalanceColor};">${Math.abs(
-      summaryData.net_balance || 0
-    )} <span style="font-size: 12px;">${balanceText}</span></div>
+              <td style="width: 25%; padding: 10px 8px; text-align: center;">
+                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">बाकि</div>
+                <div style="font-size: 11px; font-weight: bold; color: ${netBalanceColor};">${pdfFormatWgSada(summaryData.net_balance_wg ?? 0, summaryData.net_balance_normal ?? 0)} <span style="font-size: 9px;">${balanceText}</span></div>
                 ${
                   balanceNote
-                    ? `<div style="font-size: 10px; color: #9ca3af;">${balanceNote}</div>`
+                    ? `<div style="font-size: 8px; color: #9ca3af;">${balanceNote}</div>`
                     : ""
                 }
               </td>
@@ -226,35 +239,34 @@ function CratesLedger() {
         </div>
         
         <!-- Entries Info -->
-        <p style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">No. of Entries: <strong style="color: #374151;">${
+        <p style="font-size: 9px; color: #6b7280; margin-bottom: 6px;">No. of Entries: <strong style="color: #374151;">${
           entriesData.length
         }</strong></p>
         
         <!-- Table -->
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; font-size: 9px;">
           <thead>
             <tr style="background: #f9fafb;">
-              <th style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151;">तारीख</th>
-              <th style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 600; color: #374151;">उधार (-)</th>
-              <th style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 600; color: #374151;">जमा (+)</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; font-size: 9px; font-weight: 600; color: #374151;">तारीख</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: 9px; font-weight: 600; color: #374151;">उधार (-) WG+Sada</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: 9px; font-weight: 600; color: #374151;">जमा (+) WG+Sada</th>
             </tr>
           </thead>
           <tbody>
             ${entriesHtml}
-            <tr style="background: #f3f4f6; font-weight: bold;">
-              <td style="border: 1px solid #e5e7eb; padding: 10px 12px; font-size: 13px;">कुल योग</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; color: #dc2626;">${
-                summaryData.total_out || 0
-              }</td>
-              <td style="border: 1px solid #e5e7eb; padding: 10px 12px; text-align: right; color: #059669;">${
-                summaryData.total_in || 0
-              }</td>
+            <tr style="background: #f3f4f6; font-weight: bold; font-size: 9px;">
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px;">कुल योग</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #dc2626;">${pdfFormatWgSada(summaryData.total_out_wg ?? 0, summaryData.total_out_normal ?? 0)}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #059669;">${pdfFormatWgSada(summaryData.total_in_wg ?? 0, summaryData.total_in_normal ?? 0)}</td>
             </tr>
           </tbody>
         </table>
         
+        <!-- Bottom spacing -->
+        <div style="height: 20mm; margin-top: 10mm;"></div>
+        
         <!-- Footer -->
-        <p style="text-align: right; margin-top: 20px; font-size: 11px; color: #9ca3af;">
+        <p style="text-align: right; margin-top: 16px; font-size: 9px; color: #9ca3af;">
           Report Generated: ${new Date()
             .toLocaleString("en-GB", {
               hour: "2-digit",
@@ -422,26 +434,27 @@ function CratesLedger() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">पुरानी बाकि</p>
-            <p className="text-xl font-bold text-slate-700">
-              {summary.opening_balance || 0}
+            <p className="text-lg font-bold text-slate-700">
+              {formatWgSadaTotal(summary.opening_balance_wg, summary.opening_balance_normal)}
             </p>
+            <p className="text-[10px] text-slate-400">WG + Sada</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">कुल उधार (-)</p>
-            <p className="text-xl font-bold text-amber-600">
-              {summary.total_out || 0}
+            <p className="text-lg font-bold text-amber-600">
+              {formatWgSadaTotal(summary.total_out_wg, summary.total_out_normal)}
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">कुल जमा (+)</p>
-            <p className="text-xl font-bold text-emerald-600">
-              {summary.total_in || 0}
+            <p className="text-lg font-bold text-emerald-600">
+              {formatWgSadaTotal(summary.total_in_wg, summary.total_in_normal)}
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">बाकि</p>
             <p
-              className={`text-xl font-bold ${
+              className={`text-lg font-bold ${
                 summary.net_balance > 0
                   ? "text-red-600"
                   : summary.net_balance < 0
@@ -449,7 +462,10 @@ function CratesLedger() {
                   : "text-slate-600"
               }`}
             >
-              {Math.abs(summary.net_balance || 0)}
+              {formatWgSadaTotal(
+                summary.net_balance_wg ?? 0,
+                summary.net_balance_normal ?? 0
+              )}
               <span className="text-xs ml-1">
                 {summary.net_balance > 0
                   ? "Dr"
@@ -514,17 +530,21 @@ function CratesLedger() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {entry.type === "OUT" && (
+                        {entry.type === "OUT" ? (
                           <span className="font-semibold text-amber-600">
-                            {entry.quantity}
+                            {formatWgSadaTotal(entry.wg_quantity, entry.normal_quantity)}
                           </span>
+                        ) : (
+                          "–"
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {entry.type === "IN" && (
+                        {entry.type === "IN" ? (
                           <span className="font-semibold text-emerald-600">
-                            {entry.quantity}
+                            {formatWgSadaTotal(entry.wg_quantity, entry.normal_quantity)}
                           </span>
+                        ) : (
+                          "–"
                         )}
                       </td>
                     </tr>
@@ -535,10 +555,10 @@ function CratesLedger() {
                       कुल योग
                     </td>
                     <td className="px-4 py-3 text-center text-amber-600">
-                      {summary.total_out || 0}
+                      {formatWgSadaTotal(summary.total_out_wg, summary.total_out_normal)}
                     </td>
                     <td className="px-4 py-3 text-center text-emerald-600">
-                      {summary.total_in || 0}
+                      {formatWgSadaTotal(summary.total_in_wg, summary.total_in_normal)}
                     </td>
                   </tr>
                 </tbody>

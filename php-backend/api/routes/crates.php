@@ -30,24 +30,37 @@ class CratesRoutes {
                     c.name_en,
                     c.name_hi,
                     c.opening_balance,
+                    COALESCE(c.opening_balance_wg, 0) as opening_balance_wg,
+                    COALESCE(c.opening_balance_normal, 0) as opening_balance_normal,
                     c.created_at,
                     COALESCE(SUM(CASE WHEN e.type = 'OUT' THEN e.quantity ELSE 0 END), 0) as total_out,
-                    COALESCE(SUM(CASE WHEN e.type = 'IN' THEN e.quantity ELSE 0 END), 0) as total_in
+                    COALESCE(SUM(CASE WHEN e.type = 'IN' THEN e.quantity ELSE 0 END), 0) as total_in,
+                    COALESCE(SUM(CASE WHEN e.type = 'OUT' THEN COALESCE(e.wg_quantity, 0) ELSE 0 END), 0) as total_out_wg,
+                    COALESCE(SUM(CASE WHEN e.type = 'OUT' THEN COALESCE(e.normal_quantity, e.quantity) ELSE 0 END), 0) as total_out_normal,
+                    COALESCE(SUM(CASE WHEN e.type = 'IN' THEN COALESCE(e.wg_quantity, 0) ELSE 0 END), 0) as total_in_wg,
+                    COALESCE(SUM(CASE WHEN e.type = 'IN' THEN COALESCE(e.normal_quantity, e.quantity) ELSE 0 END), 0) as total_in_normal
                 FROM crate_customers c
                 LEFT JOIN crate_entries e ON c.id = e.customer_id
-                GROUP BY c.id, c.name_en, c.name_hi, c.opening_balance, c.created_at
+                GROUP BY c.id, c.name_en, c.name_hi, c.opening_balance, c.opening_balance_wg, c.opening_balance_normal, c.created_at
                 ORDER BY c.name_en ASC
             ");
             $customers = $stmt->fetchAll();
 
-            // Convert types and calculate balance
+            // Convert types and calculate balance (including WG/Normal split)
             $customers = array_map(function($customer) {
                 $customer['id'] = (int)$customer['id'];
                 $customer['opening_balance'] = (int)$customer['opening_balance'];
+                $customer['opening_balance_wg'] = (int)$customer['opening_balance_wg'];
+                $customer['opening_balance_normal'] = (int)$customer['opening_balance_normal'];
                 $customer['total_out'] = (int)$customer['total_out'];
                 $customer['total_in'] = (int)$customer['total_in'];
-                // Balance = opening + out - in (positive means customer has crates)
+                $customer['total_out_wg'] = (int)$customer['total_out_wg'];
+                $customer['total_out_normal'] = (int)$customer['total_out_normal'];
+                $customer['total_in_wg'] = (int)$customer['total_in_wg'];
+                $customer['total_in_normal'] = (int)$customer['total_in_normal'];
                 $customer['current_balance'] = $customer['opening_balance'] + $customer['total_out'] - $customer['total_in'];
+                $customer['current_balance_wg'] = $customer['opening_balance_wg'] + $customer['total_out_wg'] - $customer['total_in_wg'];
+                $customer['current_balance_normal'] = $customer['opening_balance_normal'] + $customer['total_out_normal'] - $customer['total_in_normal'];
                 return $customer;
             }, $customers);
 
@@ -67,18 +80,24 @@ class CratesRoutes {
 
         $nameEn = trim($data['name_en'] ?? '');
         $nameHi = trim($data['name_hi'] ?? '');
-        $openingBalance = isset($data['opening_balance']) ? (int)$data['opening_balance'] : 0;
+        $openingBalanceWg = isset($data['opening_balance_wg']) ? (int)$data['opening_balance_wg'] : 0;
+        $openingBalanceNormal = isset($data['opening_balance_normal']) ? (int)$data['opening_balance_normal'] : 0;
+        $openingBalance = $openingBalanceWg + $openingBalanceNormal;
 
         if (empty($nameEn)) {
             errorResponse('English name is required', 400);
         }
 
+        if ($openingBalanceWg < 0 || $openingBalanceNormal < 0) {
+            errorResponse('Opening balance WG and Normal cannot be negative', 400);
+        }
+
         try {
             $stmt = $this->conn->prepare("
-                INSERT INTO crate_customers (name_en, name_hi, opening_balance)
-                VALUES (?, ?, ?)
+                INSERT INTO crate_customers (name_en, name_hi, opening_balance, opening_balance_wg, opening_balance_normal)
+                VALUES (?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$nameEn, $nameHi ?: null, $openingBalance]);
+            $stmt->execute([$nameEn, $nameHi ?: null, $openingBalance, $openingBalanceWg, $openingBalanceNormal]);
             $customerId = $this->conn->lastInsertId();
 
             jsonResponse([
@@ -87,7 +106,9 @@ class CratesRoutes {
                     'id' => (int)$customerId,
                     'name_en' => $nameEn,
                     'name_hi' => $nameHi,
-                    'opening_balance' => $openingBalance
+                    'opening_balance' => $openingBalance,
+                    'opening_balance_wg' => $openingBalanceWg,
+                    'opening_balance_normal' => $openingBalanceNormal
                 ]
             ], 201);
         } catch (Exception $e) {
@@ -105,10 +126,16 @@ class CratesRoutes {
 
         $nameEn = trim($data['name_en'] ?? '');
         $nameHi = trim($data['name_hi'] ?? '');
-        $openingBalance = isset($data['opening_balance']) ? (int)$data['opening_balance'] : 0;
+        $openingBalanceWg = isset($data['opening_balance_wg']) ? (int)$data['opening_balance_wg'] : 0;
+        $openingBalanceNormal = isset($data['opening_balance_normal']) ? (int)$data['opening_balance_normal'] : 0;
+        $openingBalance = $openingBalanceWg + $openingBalanceNormal;
 
         if (empty($nameEn)) {
             errorResponse('English name is required', 400);
+        }
+
+        if ($openingBalanceWg < 0 || $openingBalanceNormal < 0) {
+            errorResponse('Opening balance WG and Normal cannot be negative', 400);
         }
 
         try {
@@ -121,10 +148,10 @@ class CratesRoutes {
 
             $stmt = $this->conn->prepare("
                 UPDATE crate_customers 
-                SET name_en = ?, name_hi = ?, opening_balance = ?
+                SET name_en = ?, name_hi = ?, opening_balance = ?, opening_balance_wg = ?, opening_balance_normal = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$nameEn, $nameHi ?: null, $openingBalance, $id]);
+            $stmt->execute([$nameEn, $nameHi ?: null, $openingBalance, $openingBalanceWg, $openingBalanceNormal, $id]);
 
             jsonResponse([
                 'message' => 'Customer updated',
@@ -132,7 +159,9 @@ class CratesRoutes {
                     'id' => (int)$id,
                     'name_en' => $nameEn,
                     'name_hi' => $nameHi,
-                    'opening_balance' => $openingBalance
+                    'opening_balance' => $openingBalance,
+                    'opening_balance_wg' => $openingBalanceWg,
+                    'opening_balance_normal' => $openingBalanceNormal
                 ]
             ]);
         } catch (Exception $e) {
@@ -188,6 +217,8 @@ class CratesRoutes {
                     c.name_en as customer_name,
                     e.type,
                     e.quantity,
+                    e.wg_quantity,
+                    e.normal_quantity,
                     e.entry_date,
                     e.remark,
                     e.created_at
@@ -208,11 +239,13 @@ class CratesRoutes {
             $stmt->execute($queryParams);
             $entries = $stmt->fetchAll();
 
-            // Convert types
+            // Convert types (wg_quantity/normal_quantity may be missing in old DB before migration)
             $entries = array_map(function($entry) {
                 $entry['id'] = (int)$entry['id'];
                 $entry['customer_id'] = (int)$entry['customer_id'];
                 $entry['quantity'] = (int)$entry['quantity'];
+                $entry['wg_quantity'] = (int)($entry['wg_quantity'] ?? 0);
+                $entry['normal_quantity'] = (int)($entry['normal_quantity'] ?? $entry['quantity']);
                 return $entry;
             }, $entries);
 
@@ -232,7 +265,9 @@ class CratesRoutes {
 
         $customerId = $data['customer_id'] ?? null;
         $type = $data['type'] ?? '';
-        $quantity = isset($data['quantity']) ? (int)$data['quantity'] : 0;
+        $wgQuantity = isset($data['wg_quantity']) ? (int)$data['wg_quantity'] : 0;
+        $normalQuantity = isset($data['normal_quantity']) ? (int)$data['normal_quantity'] : 0;
+        $quantity = $wgQuantity + $normalQuantity;
         $entryDate = $data['entry_date'] ?? date('Y-m-d');
         $remark = trim($data['remark'] ?? '');
 
@@ -244,8 +279,8 @@ class CratesRoutes {
             errorResponse('Type must be IN or OUT', 400);
         }
 
-        if ($quantity <= 0) {
-            errorResponse('Quantity must be greater than 0', 400);
+        if ($quantity <= 0 || ($wgQuantity < 0 || $normalQuantity < 0)) {
+            errorResponse('At least one of WG or Sada quantity must be greater than 0', 400);
         }
 
         try {
@@ -257,10 +292,10 @@ class CratesRoutes {
             }
 
             $stmt = $this->conn->prepare("
-                INSERT INTO crate_entries (customer_id, type, quantity, entry_date, remark)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO crate_entries (customer_id, type, quantity, wg_quantity, normal_quantity, entry_date, remark)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$customerId, $type, $quantity, $entryDate, $remark ?: null]);
+            $stmt->execute([$customerId, $type, $quantity, $wgQuantity, $normalQuantity, $entryDate, $remark ?: null]);
             $entryId = $this->conn->lastInsertId();
 
             jsonResponse([
@@ -270,6 +305,8 @@ class CratesRoutes {
                     'customer_id' => (int)$customerId,
                     'type' => $type,
                     'quantity' => $quantity,
+                    'wg_quantity' => $wgQuantity,
+                    'normal_quantity' => $normalQuantity,
                     'entry_date' => $entryDate,
                     'remark' => $remark
                 ]
@@ -313,7 +350,9 @@ class CratesRoutes {
 
             foreach ($entries as $index => $entry) {
                 $type = $entry['type'] ?? '';
-                $quantity = isset($entry['quantity']) ? (int)$entry['quantity'] : 0;
+                $wgQuantity = isset($entry['wg_quantity']) ? (int)$entry['wg_quantity'] : 0;
+                $normalQuantity = isset($entry['normal_quantity']) ? (int)$entry['normal_quantity'] : 0;
+                $quantity = $wgQuantity + $normalQuantity;
                 $entryDate = $entry['entry_date'] ?? date('Y-m-d');
                 $remark = trim($entry['remark'] ?? '');
 
@@ -322,21 +361,23 @@ class CratesRoutes {
                     continue;
                 }
 
-                if ($quantity <= 0) {
-                    $errors[] = "Entry $index: Quantity must be greater than 0";
+                if ($quantity <= 0 || ($wgQuantity < 0 || $normalQuantity < 0)) {
+                    $errors[] = "Entry $index: At least one of WG or Sada quantity must be greater than 0";
                     continue;
                 }
 
                 $stmt = $this->conn->prepare("
-                    INSERT INTO crate_entries (customer_id, type, quantity, entry_date, remark)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO crate_entries (customer_id, type, quantity, wg_quantity, normal_quantity, entry_date, remark)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$customerId, $type, $quantity, $entryDate, $remark ?: null]);
+                $stmt->execute([$customerId, $type, $quantity, $wgQuantity, $normalQuantity, $entryDate, $remark ?: null]);
                 
                 $createdEntries[] = [
                     'id' => (int)$this->conn->lastInsertId(),
                     'type' => $type,
                     'quantity' => $quantity,
+                    'wg_quantity' => $wgQuantity,
+                    'normal_quantity' => $normalQuantity,
                     'entry_date' => $entryDate
                 ];
             }
@@ -400,9 +441,12 @@ class CratesRoutes {
         $toDate = $params['to'] ?? null;
 
         try {
-            // Get customer details
+            // Get customer details (include split opening balance)
             $stmt = $this->conn->prepare("
-                SELECT id, name_en, name_hi, opening_balance, created_at
+                SELECT id, name_en, name_hi, opening_balance,
+                    COALESCE(opening_balance_wg, 0) as opening_balance_wg,
+                    COALESCE(opening_balance_normal, 0) as opening_balance_normal,
+                    created_at
                 FROM crate_customers
                 WHERE id = ?
             ");
@@ -415,13 +459,17 @@ class CratesRoutes {
 
             $customer['id'] = (int)$customer['id'];
             $customer['opening_balance'] = (int)$customer['opening_balance'];
+            $customer['opening_balance_wg'] = (int)$customer['opening_balance_wg'];
+            $customer['opening_balance_normal'] = (int)$customer['opening_balance_normal'];
 
-            // Build entries query with date filter
+            // Build entries query with date filter (include wg_quantity, normal_quantity)
             $query = "
                 SELECT 
                     id,
                     type,
                     quantity,
+                    COALESCE(wg_quantity, 0) as wg_quantity,
+                    COALESCE(normal_quantity, quantity) as normal_quantity,
                     entry_date,
                     remark,
                     created_at
@@ -446,48 +494,78 @@ class CratesRoutes {
             $stmt->execute($queryParams);
             $entries = $stmt->fetchAll();
 
-            // Calculate totals
+            // Calculate totals (including WG and Normal split)
             $totalOut = 0;
             $totalIn = 0;
+            $totalOutWg = 0;
+            $totalOutNormal = 0;
+            $totalInWg = 0;
+            $totalInNormal = 0;
 
-            $entries = array_map(function($entry) use (&$totalOut, &$totalIn) {
+            $entries = array_map(function($entry) use (&$totalOut, &$totalIn, &$totalOutWg, &$totalOutNormal, &$totalInWg, &$totalInNormal) {
                 $entry['id'] = (int)$entry['id'];
                 $entry['quantity'] = (int)$entry['quantity'];
-                
+                $wg = (int)$entry['wg_quantity'];
+                $normal = (int)$entry['normal_quantity'];
+                $entry['wg_quantity'] = $wg;
+                $entry['normal_quantity'] = $normal;
+
                 if ($entry['type'] === 'OUT') {
                     $totalOut += $entry['quantity'];
+                    $totalOutWg += $wg;
+                    $totalOutNormal += $normal;
                 } else {
                     $totalIn += $entry['quantity'];
+                    $totalInWg += $wg;
+                    $totalInNormal += $normal;
                 }
-                
+
                 return $entry;
             }, $entries);
 
-            // Calculate balance before the date range if from date is specified
+            // Calculate balance before the date range if from date is specified (split by WG/Normal)
             $balanceBeforeRange = $customer['opening_balance'];
+            $balanceBeforeRangeWg = $customer['opening_balance_wg'];
+            $balanceBeforeRangeNormal = $customer['opening_balance_normal'];
             if ($fromDate) {
                 $stmt = $this->conn->prepare("
                     SELECT 
                         COALESCE(SUM(CASE WHEN type = 'OUT' THEN quantity ELSE 0 END), 0) as out_total,
-                        COALESCE(SUM(CASE WHEN type = 'IN' THEN quantity ELSE 0 END), 0) as in_total
+                        COALESCE(SUM(CASE WHEN type = 'IN' THEN quantity ELSE 0 END), 0) as in_total,
+                        COALESCE(SUM(CASE WHEN type = 'OUT' THEN COALESCE(wg_quantity, 0) ELSE 0 END), 0) as out_wg,
+                        COALESCE(SUM(CASE WHEN type = 'OUT' THEN COALESCE(normal_quantity, quantity) ELSE 0 END), 0) as out_normal,
+                        COALESCE(SUM(CASE WHEN type = 'IN' THEN COALESCE(wg_quantity, 0) ELSE 0 END), 0) as in_wg,
+                        COALESCE(SUM(CASE WHEN type = 'IN' THEN COALESCE(normal_quantity, quantity) ELSE 0 END), 0) as in_normal
                     FROM crate_entries
                     WHERE customer_id = ? AND entry_date < ?
                 ");
                 $stmt->execute([$customerId, $fromDate]);
                 $beforeRange = $stmt->fetch();
                 $balanceBeforeRange += (int)$beforeRange['out_total'] - (int)$beforeRange['in_total'];
+                $balanceBeforeRangeWg += (int)$beforeRange['out_wg'] - (int)$beforeRange['in_wg'];
+                $balanceBeforeRangeNormal += (int)$beforeRange['out_normal'] - (int)$beforeRange['in_normal'];
             }
 
             $netBalance = $balanceBeforeRange + $totalOut - $totalIn;
+            $netBalanceWg = $balanceBeforeRangeWg + $totalOutWg - $totalInWg;
+            $netBalanceNormal = $balanceBeforeRangeNormal + $totalOutNormal - $totalInNormal;
 
             jsonResponse([
                 'customer' => $customer,
                 'entries' => $entries,
                 'summary' => [
                     'opening_balance' => $balanceBeforeRange,
+                    'opening_balance_wg' => $balanceBeforeRangeWg,
+                    'opening_balance_normal' => $balanceBeforeRangeNormal,
                     'total_out' => $totalOut,
+                    'total_out_wg' => $totalOutWg,
+                    'total_out_normal' => $totalOutNormal,
                     'total_in' => $totalIn,
-                    'net_balance' => $netBalance
+                    'total_in_wg' => $totalInWg,
+                    'total_in_normal' => $totalInNormal,
+                    'net_balance' => $netBalance,
+                    'net_balance_wg' => $netBalanceWg,
+                    'net_balance_normal' => $netBalanceNormal
                 ],
                 'date_range' => [
                     'from' => $fromDate,
