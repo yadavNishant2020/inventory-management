@@ -112,6 +112,11 @@ function CratesLedger() {
       const total = w + n;
       return total === 0 ? "–" : `${w} + ${n} = ${total}`;
     };
+
+    const fs = 10;
+    const fsSmall = fs - 1;
+    const fsRemark = fs - 2;
+
     let entriesHtml = "";
     entriesData.forEach((entry) => {
       const isDebit = entry.type === "OUT";
@@ -120,24 +125,24 @@ function CratesLedger() {
       const cellVal = pdfFormatWgSada(wg, normal);
       entriesHtml += `
         <tr>
-          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 9px;">${formatDateShort(
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; font-size: ${fs}px;">${formatDateShort(
             entry.entry_date
           )}${
         entry.remark
-          ? `<br><span style="font-size: 8px; color: #9ca3af;">${entry.remark}</span>`
+          ? `<br><span style="font-size: ${fsRemark}px; color: #9ca3af;">${entry.remark}</span>`
           : ""
       }</td>
-          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: 9px; color: #dc2626;">${
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: ${fs}px; color: #dc2626;">${
             isDebit ? cellVal : "–"
           }</td>
-          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: 9px; color: #059669;">${
+          <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: ${fs}px; color: #059669;">${
             !isDebit ? cellVal : "–"
           }</td>
         </tr>
       `;
     });
 
-    // Build date range text for PDF
+    // Build date range text for PDF (fix: earliest first, latest second)
     const fromDateStr = fromDate ? formatDateShort(fromDate) : null;
     const toDateStr = toDate ? formatDateShort(toDate) : null;
     let dateRangeDisplay = "";
@@ -148,17 +153,28 @@ function CratesLedger() {
     } else if (toDateStr) {
       dateRangeDisplay = `शुरू से ${toDateStr} तक`;
     } else {
-      // No filter applied - show "All entries" or date range from entries
       if (entriesData.length > 0) {
-        const firstDate = formatDateShort(
+        const earliestDate = formatDateShort(entriesData[0].entry_date);
+        const latestDate = formatDateShort(
           entriesData[entriesData.length - 1].entry_date
         );
-        const lastDate = formatDateShort(entriesData[0].entry_date);
-        dateRangeDisplay = `${firstDate} से ${lastDate} तक`;
+        dateRangeDisplay = `${earliestDate} से ${latestDate} तक`;
       } else {
         dateRangeDisplay = "सभी एंट्री";
       }
     }
+
+    // Computed values for footer rows
+    const openWg = Number(summaryData.opening_balance_wg) || 0;
+    const openNormal = Number(summaryData.opening_balance_normal) || 0;
+    const outWg = Number(summaryData.total_out_wg) || 0;
+    const outNormal = Number(summaryData.total_out_normal) || 0;
+    const inWg = Number(summaryData.total_in_wg) || 0;
+    const inNormal = Number(summaryData.total_in_normal) || 0;
+    const grandTotalWg = openWg + outWg;
+    const grandTotalNormal = openNormal + outNormal;
+    const netWg = grandTotalWg - inWg;
+    const netNormal = grandTotalNormal - inNormal;
 
     return `
       <!DOCTYPE html>
@@ -180,104 +196,74 @@ function CratesLedger() {
           }
           body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            padding: 15mm 30mm;
-            padding-bottom: 25mm;
-            margin-bottom: 15mm;
-            min-height: 100vh;
+            padding: 5mm 20mm 25mm 20mm;
             color: #374151;
-            font-size: 9px;
+            font-size: ${fs}px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
         </style>
       </head>
       <body>
-        <!-- Header -->
-        <div style="text-align: center; margin-bottom: 14px;">
-          <h1 style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${
+        <!-- Header (no top gap) -->
+        <div style="text-align: center; margin-bottom: 8px;">
+          <h1 style="font-size: 17px; font-weight: bold; margin-bottom: 2px;">${
             customerData?.name_en || ""
           }</h1>
           ${
             customerData?.name_hi
-              ? `<p style="color: #6b7280; font-size: 10px; margin-bottom: 4px;">${customerData.name_hi}</p>`
+              ? `<p style="color: #6b7280; font-size: 11px; margin-bottom: 2px;">${customerData.name_hi}</p>`
               : ""
           }
           ${
             dateRangeDisplay
-              ? `<p style="color: #374151; font-size: 9px; font-weight: 500; margin-top: 4px; padding: 3px 10px; background: #f3f4f6; display: inline-block; border-radius: 4px;">${dateRangeDisplay}</p>`
+              ? `<p style="color: #374151; font-size: ${fs}px; font-weight: 500; margin-top: 2px;">${dateRangeDisplay}</p>`
               : ""
           }
         </div>
         
-        <!-- Summary Box -->
-        <div style="border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px; overflow: hidden;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-            <tr>
-              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">पुरानी बाकि</div>
-                <div style="font-size: 11px; font-weight: bold;">${pdfFormatWgSada(summaryData.opening_balance_wg ?? 0, summaryData.opening_balance_normal ?? 0)}</div>
-              </td>
-              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">कुल उधार (-)</div>
-                <div style="font-size: 11px; font-weight: bold; color: #dc2626;">${pdfFormatWgSada(summaryData.total_out_wg ?? 0, summaryData.total_out_normal ?? 0)}</div>
-              </td>
-              <td style="width: 25%; padding: 10px 8px; text-align: center; border-right: 1px solid #e5e7eb;">
-                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">कुल जमा (+)</div>
-                <div style="font-size: 11px; font-weight: bold; color: #059669;">${pdfFormatWgSada(summaryData.total_in_wg ?? 0, summaryData.total_in_normal ?? 0)}</div>
-              </td>
-              <td style="width: 25%; padding: 10px 8px; text-align: center;">
-                <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">बाकि</div>
-                <div style="font-size: 11px; font-weight: bold; color: ${netBalanceColor};">${pdfFormatWgSada(summaryData.net_balance_wg ?? 0, summaryData.net_balance_normal ?? 0)} <span style="font-size: 9px;">${balanceText}</span></div>
-                ${
-                  balanceNote
-                    ? `<div style="font-size: 8px; color: #9ca3af;">${balanceNote}</div>`
-                    : ""
-                }
-              </td>
-            </tr>
-          </table>
-        </div>
-        
-        <!-- Entries Info -->
-        <p style="font-size: 9px; color: #6b7280; margin-bottom: 6px;">No. of Entries: <strong style="color: #374151;">${
+        <!-- Entries count -->
+        <p style="font-size: ${fsSmall}px; color: #6b7280; margin-bottom: 6px;">No. of Entries: <strong style="color: #374151;">${
           entriesData.length
         }</strong></p>
         
-        <!-- Table -->
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; font-size: 9px;">
+        <!-- Main Table -->
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; font-size: ${fs}px;">
           <thead>
             <tr style="background: #f9fafb;">
-              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; font-size: 9px; font-weight: 600; color: #374151;">तारीख</th>
-              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: 9px; font-weight: 600; color: #374151;">उधार (-) WG+Sada</th>
-              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: 9px; font-weight: 600; color: #374151;">जमा (+) WG+Sada</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; font-size: ${fs}px; font-weight: 600; color: #374151;">तारीख</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: ${fs}px; font-weight: 600; color: #374151;">उधार (-) WG+Sada</th>
+              <th style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: ${fs}px; font-weight: 600; color: #374151;">जमा (+) WG+Sada</th>
             </tr>
           </thead>
           <tbody>
+            <!-- Purana Balance row (first row) -->
+            <tr style="background: #fefce8;">
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; font-weight: 600; font-size: ${fs}px;">पुरानी बाकि</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: ${fs}px; color: #dc2626;">${pdfFormatWgSada(openWg, openNormal)}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-size: ${fs}px;">–</td>
+            </tr>
             ${entriesHtml}
-            <tr style="background: #f3f4f6; font-weight: bold; font-size: 9px;">
-              <td style="border: 1px solid #e5e7eb; padding: 6px 8px;">कुल योग</td>
-              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #dc2626;">${pdfFormatWgSada(summaryData.total_out_wg ?? 0, summaryData.total_out_normal ?? 0)}</td>
-              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #059669;">${pdfFormatWgSada(summaryData.total_in_wg ?? 0, summaryData.total_in_normal ?? 0)}</td>
+            <!-- Total (purana + current udhar) -->
+            <tr style="background: #fef2f2; font-weight: bold; font-size: ${fs}px;">
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px;">Total</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #dc2626;">${pdfFormatWgSada(grandTotalWg, grandTotalNormal)}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right;"></td>
+            </tr>
+            <!-- Jama (total IN subtracted) -->
+            <tr style="background: #f0fdf4; font-weight: bold; font-size: ${fs}px;">
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px;">जमा (-)</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: #059669;">${pdfFormatWgSada(inWg, inNormal)}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right;"></td>
+            </tr>
+            <!-- Net Balance -->
+            <tr style="background: #eff6ff; font-weight: bold; font-size: ${fs}px;">
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px;">Net Bal</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; color: ${netBalanceColor};">${pdfFormatWgSada(netWg, netNormal)}${balanceText ? ` ${balanceText}` : ""}</td>
+              <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right;"></td>
             </tr>
           </tbody>
         </table>
-        
-        <!-- Bottom spacing -->
-        <div style="height: 20mm; margin-top: 10mm;"></div>
-        
-        <!-- Footer -->
-        <p style="text-align: right; margin-top: 16px; font-size: 9px; color: #9ca3af;">
-          Report Generated: ${new Date()
-            .toLocaleString("en-GB", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-              day: "2-digit",
-              month: "short",
-              year: "2-digit",
-            })
-            .replace(",", " |")}
-        </p>
       </body>
       </html>
     `;
