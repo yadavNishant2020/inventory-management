@@ -12,10 +12,17 @@ function CratesEntry() {
 
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(
-    preselectedCustomer || ""
+    preselectedCustomer || "",
   );
   const [entries, setEntries] = useState([
-    { id: 1, type: "OUT", wg_quantity: "", normal_quantity: "", entry_date: new Date(), remark: "" },
+    {
+      id: 1,
+      type: "OUT",
+      wg_quantity: "",
+      normal_quantity: "",
+      entry_date: new Date(),
+      remark: "",
+    },
   ]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +63,7 @@ function CratesEntry() {
 
   const updateEntry = (id, field, value) => {
     setEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, [field]: value } : e))
+      prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
     );
   };
 
@@ -94,7 +101,7 @@ function CratesEntry() {
       await cratesApi.createBulkEntries(payload);
       showToast(
         `${validEntries.length} entries created successfully`,
-        "success"
+        "success",
       );
 
       // Reset form
@@ -120,7 +127,7 @@ function CratesEntry() {
     const d = new Date(date);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
@@ -128,14 +135,17 @@ function CratesEntry() {
     (parseInt(e.wg_quantity) || 0) + (parseInt(e.normal_quantity) || 0);
   const totalOut = entries.reduce(
     (sum, e) => sum + (e.type === "OUT" ? entryTotal(e) : 0),
-    0
+    0,
   );
   const totalIn = entries.reduce(
     (sum, e) => sum + (e.type === "IN" ? entryTotal(e) : 0),
-    0
+    0,
   );
   const validEntryCount = entries.filter(
-    (e) => entryTotal(e) > 0 && (parseInt(e.wg_quantity) || 0) >= 0 && (parseInt(e.normal_quantity) || 0) >= 0
+    (e) =>
+      entryTotal(e) > 0 &&
+      (parseInt(e.wg_quantity) || 0) >= 0 &&
+      (parseInt(e.normal_quantity) || 0) >= 0,
   ).length;
 
   if (loading) {
@@ -307,7 +317,9 @@ function CratesEntry() {
                           : "text-emerald-600 focus:border-emerald-500 focus:ring-emerald-500/20"
                       }`}
                     />
-                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">WG</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">
+                      WG
+                    </p>
                   </div>
                   <div>
                     <input
@@ -324,7 +336,9 @@ function CratesEntry() {
                           : "text-emerald-600 focus:border-emerald-500 focus:ring-emerald-500/20"
                       }`}
                     />
-                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">Sada</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-center">
+                      Sada
+                    </p>
                   </div>
                 </div>
               </div>
@@ -362,9 +376,7 @@ function CratesEntry() {
       <div className="fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:w-96">
         <button
           onClick={handleSubmit}
-          disabled={
-            submitting || !selectedCustomer || validEntryCount === 0
-          }
+          disabled={submitting || !selectedCustomer || validEntryCount === 0}
           className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 ${
             selectedCustomer && validEntryCount > 0
               ? "bg-amber-500 shadow-amber-500/30 hover:bg-amber-600"

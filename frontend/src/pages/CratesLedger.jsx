@@ -56,7 +56,7 @@ function CratesLedger() {
     const d = new Date(date);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
@@ -91,20 +91,20 @@ function CratesLedger() {
       summaryData.net_balance > 0
         ? "#dc2626"
         : summaryData.net_balance < 0
-        ? "#059669"
-        : "#374151";
+          ? "#059669"
+          : "#374151";
     const balanceText =
       summaryData.net_balance > 0
         ? "Dr"
         : summaryData.net_balance < 0
-        ? "Cr"
-        : "";
+          ? "Cr"
+          : "";
     const balanceNote =
       summaryData.net_balance > 0
         ? "(Customer owes)"
         : summaryData.net_balance < 0
-        ? "(We owe)"
-        : "";
+          ? "(We owe)"
+          : "";
 
     const pdfFormatWgSada = (wg, normal) => {
       const w = Number(wg) || 0;
@@ -126,12 +126,12 @@ function CratesLedger() {
       entriesHtml += `
         <tr>
           <td style="border: 1px solid #e5e7eb; padding: 6px 8px; font-size: ${fs}px;">${formatDateShort(
-            entry.entry_date
+            entry.entry_date,
           )}${
-        entry.remark
-          ? `<br><span style="font-size: ${fsRemark}px; color: #9ca3af;">${entry.remark}</span>`
-          : ""
-      }</td>
+            entry.remark
+              ? `<br><span style="font-size: ${fsRemark}px; color: #9ca3af;">${entry.remark}</span>`
+              : ""
+          }</td>
           <td style="border: 1px solid #e5e7eb; padding: 6px 8px; text-align: right; font-weight: 600; font-size: ${fs}px; color: #dc2626;">${
             isDebit ? cellVal : "–"
           }</td>
@@ -156,7 +156,7 @@ function CratesLedger() {
       if (entriesData.length > 0) {
         const earliestDate = formatDateShort(entriesData[0].entry_date);
         const latestDate = formatDateShort(
-          entriesData[entriesData.length - 1].entry_date
+          entriesData[entriesData.length - 1].entry_date,
         );
         dateRangeDisplay = `${earliestDate} से ${latestDate} तक`;
       } else {
@@ -421,14 +421,20 @@ function CratesLedger() {
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">पुरानी बाकि</p>
             <p className="text-lg font-bold text-slate-700">
-              {formatWgSadaTotal(summary.opening_balance_wg, summary.opening_balance_normal)}
+              {formatWgSadaTotal(
+                summary.opening_balance_wg,
+                summary.opening_balance_normal,
+              )}
             </p>
             <p className="text-[10px] text-slate-400">WG + Sada</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
             <p className="text-xs text-slate-500 mb-1">कुल उधार (-)</p>
             <p className="text-lg font-bold text-amber-600">
-              {formatWgSadaTotal(summary.total_out_wg, summary.total_out_normal)}
+              {formatWgSadaTotal(
+                summary.total_out_wg,
+                summary.total_out_normal,
+              )}
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
@@ -444,28 +450,28 @@ function CratesLedger() {
                 summary.net_balance > 0
                   ? "text-red-600"
                   : summary.net_balance < 0
-                  ? "text-emerald-600"
-                  : "text-slate-600"
+                    ? "text-emerald-600"
+                    : "text-slate-600"
               }`}
             >
               {formatWgSadaTotal(
                 summary.net_balance_wg ?? 0,
-                summary.net_balance_normal ?? 0
+                summary.net_balance_normal ?? 0,
               )}
               <span className="text-xs ml-1">
                 {summary.net_balance > 0
                   ? "Dr"
                   : summary.net_balance < 0
-                  ? "Cr"
-                  : ""}
+                    ? "Cr"
+                    : ""}
               </span>
             </p>
             <p className="text-[10px] text-slate-400">
               {summary.net_balance > 0
                 ? "(Customer owes)"
                 : summary.net_balance < 0
-                ? "(We owe)"
-                : "(Settled)"}
+                  ? "(We owe)"
+                  : "(Settled)"}
             </p>
           </div>
         </div>
@@ -518,7 +524,10 @@ function CratesLedger() {
                       <td className="px-4 py-3 text-center">
                         {entry.type === "OUT" ? (
                           <span className="font-semibold text-amber-600">
-                            {formatWgSadaTotal(entry.wg_quantity, entry.normal_quantity)}
+                            {formatWgSadaTotal(
+                              entry.wg_quantity,
+                              entry.normal_quantity,
+                            )}
                           </span>
                         ) : (
                           "–"
@@ -527,7 +536,10 @@ function CratesLedger() {
                       <td className="px-4 py-3 text-center">
                         {entry.type === "IN" ? (
                           <span className="font-semibold text-emerald-600">
-                            {formatWgSadaTotal(entry.wg_quantity, entry.normal_quantity)}
+                            {formatWgSadaTotal(
+                              entry.wg_quantity,
+                              entry.normal_quantity,
+                            )}
                           </span>
                         ) : (
                           "–"
@@ -541,10 +553,16 @@ function CratesLedger() {
                       कुल योग
                     </td>
                     <td className="px-4 py-3 text-center text-amber-600">
-                      {formatWgSadaTotal(summary.total_out_wg, summary.total_out_normal)}
+                      {formatWgSadaTotal(
+                        summary.total_out_wg,
+                        summary.total_out_normal,
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center text-emerald-600">
-                      {formatWgSadaTotal(summary.total_in_wg, summary.total_in_normal)}
+                      {formatWgSadaTotal(
+                        summary.total_in_wg,
+                        summary.total_in_normal,
+                      )}
                     </td>
                   </tr>
                 </tbody>
@@ -565,7 +583,7 @@ function CratesLedger() {
                 year: "2-digit",
                 hour: "2-digit",
                 minute: "2-digit",
-              }
+              },
             )}
           </p>
         </div>
